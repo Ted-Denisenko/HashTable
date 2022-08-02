@@ -1,20 +1,40 @@
-// HashTable.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+#define CAPACITY 20000
+#include <stdio.h>
+#include <string>
 
-#include <iostream>
+typedef struct HT_item HT_item;
+
+struct HT_item
+{
+	char* key;
+	char* value;
+};
+
+unsigned long hashFunction(char* str)
+{
+	unsigned long i = 0;
+	for (int j = 0; str[j]; j++)
+		i += str[j];
+	return i % CAPACITY;
+}
+
+// create item with key-value pair in HT
+HT_item* createItem(char* key, char* value)
+{
+	HT_item* item = (HT_item*)malloc(sizeof(HT_item));
+	item->key = (char*)malloc(strlen(key) + 1);
+	item->value = (char*)malloc(strlen(value) + 1);
+
+	strcpy(item->key, key);
+	strcpy(item->value, value);
+
+	return item;
+}
+
+
 
 int main()
 {
-    std::cout << "Hello World!\n";
+	std::string str = "booba";
+	return 0;
 }
-
-// Run program: Ctrl + F5 or Debug > Start Without Debugging menu
-// Debug program: F5 or Debug > Start Debugging menu
-
-// Tips for Getting Started: 
-//   1. Use the Solution Explorer window to add/manage files
-//   2. Use the Team Explorer window to connect to source control
-//   3. Use the Output window to see build output and other messages
-//   4. Use the Error List window to view errors
-//   5. Go to Project > Add New Item to create new code files, or Project > Add Existing Item to add existing code files to the project
-//   6. In the future, to open this project again, go to File > Open > Project and select the .sln file
