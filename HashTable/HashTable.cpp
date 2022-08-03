@@ -1,5 +1,5 @@
 #define CAPACITY 20000
-#include <stdio.h>
+#include <iostream>
 #include <string>
 
 typedef struct HT_item HT_item;
@@ -74,6 +74,60 @@ void freeTable(HashTable* table)
 
 	delete table->items;
 	delete table;
+}
+
+void HT_insert(HashTable* table, char* key, char* value)
+{
+	if (table->count == table->size)
+	{
+		std::cout << "Insert error: Hash Table is full" << std::endl;
+		return;
+	}
+
+	HT_item* item = createItem(key, value);
+	int index = hashFunction(key);
+
+	HT_item* current_item = table->items[index];
+	if (current_item == NULL)
+	{
+		table->items[index] = item;
+		table->count++;
+	}
+	else
+	{
+		// case 1: update existing value
+		// TODO: нужно ли использовать СИ-шный strcmp для сравнения значения ключей и значений?
+		if (strcmp(current_item->key, key))
+		{
+			strcpy(table->items[index]->value, value);
+			return;
+		}
+
+		// case 2: COLLISION!!!
+		else
+		{
+			handleCollision(table, current_item);
+			// например, создать массив и записывать в него пары ключ-значение(ключи потом можно отсортировать)
+			return;
+		}
+	}
+}
+
+void handleCollision(HashTable* table, HT_item* item) 
+{
+
+}
+
+char* HT_search(HashTable* table, char* key)
+{
+	int index = hashFunction(key);
+	HT_item* item = table->items[index];
+	if (item != NULL)
+	{
+		if (strcmp(item->key, key) == 0)
+			return item->value;
+	}
+	return NULL;
 }
 
 int main()
