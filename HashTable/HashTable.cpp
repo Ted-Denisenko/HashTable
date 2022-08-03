@@ -1,3 +1,5 @@
+#define _CRT_SECURE_NO_WARNINGS
+
 #define CAPACITY 20000
 #include <iostream>
 #include <string>
@@ -47,7 +49,7 @@ HashTable* create_table(int size)
 	table->count = 0;
 	table->items = new HT_item*;
 
-	for (int i; i < table->size; i++)
+	for (int i = 0; i < table->size; i++)
 		table->items[i] = NULL;
 
 	return table;
@@ -65,7 +67,7 @@ void freeItem(HT_item* item)
 
 void freeTable(HashTable* table)
 {
-	for (int i; i < table->size; i++)
+	for (int i = 0; i < table->size; i++)
 	{
 		HT_item* item = table->items[i];
 		if (item != NULL)
@@ -75,6 +77,8 @@ void freeTable(HashTable* table)
 	delete table->items;
 	delete table;
 }
+
+void handleCollision(HashTable* table, HT_item* item);
 
 void HT_insert(HashTable* table, char* key, char* value)
 {
@@ -113,7 +117,7 @@ void HT_insert(HashTable* table, char* key, char* value)
 	}
 }
 
-void handleCollision(HashTable* table, HT_item* item) 
+void handleCollision(HashTable* table, HT_item* item)
 {
 
 }
