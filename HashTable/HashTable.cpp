@@ -1,12 +1,19 @@
 #define _CRT_SECURE_NO_WARNINGS
 
-#define CAPACITY 4003
+#define CAPACITY 50000
 #include <iostream>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
-//linked list
+
+typedef struct HT_item HT_item;
+struct HT_item
+{
+	char* key;
+	char* value;
+};
+
 typedef struct LinkedList LinkedList;
 struct LinkedList
 {
@@ -14,9 +21,18 @@ struct LinkedList
 	LinkedList* next;
 };
 
+typedef struct HashTable HashTable;
+struct HashTable
+{
+	HT_item** items;
+	LinkedList** overflowBucket;
+	int size;
+	int count;
+};
+
 LinkedList* CreateListElem()
 {
-	LinkedList* list = new LinkedList;
+	LinkedList* list = new LinkedList();
 	return list;
 }
 
@@ -34,7 +50,7 @@ LinkedList* LinkedList_insert(LinkedList* list, HT_item* item)
 	// если в списке один элемент
 	else if (list->next == NULL)
 	{
-		LinkedList* node;
+		LinkedList* node = CreateListElem();
 		node->item = item;
 		node->next = NULL;
 		list->next = node;
@@ -63,20 +79,23 @@ HT_item* LinkedList_remove(LinkedList* list, HT_item item)
 	tmp->next = NULL;
 	HT_item* hashTableitem = NULL;
 	memcpy(tmp->item, hashTableitem, sizeof(HT_item));
-	
+
 	// because of malloc
 	free(tmp->item->key);
 	free(tmp->item->value);
 	free(tmp->item); //heap allocated??
 	// because of new
 	delete tmp;
+
+	return hashTableitem;
 }
 
-void FreeLinkedList(LinkedList* list)
+static void FreeLinkedList(LinkedList* list)
 {
+	LinkedList* tmp;
 	while (list)
 	{
-		auto tmp = list;
+		tmp = list;
 		list = list->next;
 		free(tmp->item->key);
 		free(tmp->item->value);
@@ -85,7 +104,7 @@ void FreeLinkedList(LinkedList* list)
 	}
 }
 
-LinkedList** CreateOverflowBuckets(HashTable* table)
+static LinkedList** CreateOverflowBuckets(HashTable* table)
 {
 	LinkedList** buckets = new LinkedList * [table->size];
 	for (int i = 0; i < table->size; i++)
@@ -95,7 +114,7 @@ LinkedList** CreateOverflowBuckets(HashTable* table)
 	return buckets;
 }
 
-void FreeOverflowBuckets(HashTable* table)
+static void FreeOverflowBuckets(HashTable* table)
 {
 	auto buckets = table->overflowBucket;
 	for (int i = 0; i < table->size; i++)
@@ -104,22 +123,6 @@ void FreeOverflowBuckets(HashTable* table)
 	}
 	delete[] buckets;
 }
-
-typedef struct HT_item HT_item;
-struct HT_item
-{
-	char* key;
-	char* value;
-};
-
-typedef struct HashTable HashTable;
-struct HashTable
-{
-	HT_item** items;
-	LinkedList** overflowBucket;
-	int size;
-	int count;
-};
 
 // вычисляем индекс
 unsigned long HashFunction(char* str)
@@ -189,7 +192,7 @@ void HandleCollision(HashTable* table, unsigned long index, HT_item* item)
 	LinkedList* head = table->overflowBucket[index];
 
 	// if list doesn't exist yet
-	if (head = NULL)
+	if (head == NULL)
 	{
 		head = CreateListElem();
 		head->item = item;
@@ -223,37 +226,95 @@ void HT_insert(HashTable* table, char* key, char* value)
 	}
 	else
 	{
-		// case 1: update existing value
 		// TODO: нужно ли использовать СИ-шный strcmp для сравнения значения ключей и значений?
-		if (strcmp(current_item->key, key))
+		if (strcmp(current_item->key, key) == 0)
 		{
 			strcpy(table->items[index]->value, value);
 			return;
 		}
 
-		// case 2: COLLISION!!!
 		else
 		{
-			HandleCollision(table, current_item);
-			// например, создать массив и записывать в него пары ключ-значение(ключи потом можно отсортировать)
+			HandleCollision(table, index, item);
 			return;
 		}
 	}
 }
 
-void HandleCollision(HashTable* table, HT_item* item)
+void HT_delete(HashTable* table, char* key)
 {
-	return;
+	int index = HashFunction(key);
+	HT_item* current_item = table->items[index];
+	LinkedList* head = table->overflowBucket[index];
+
+	if (current_item == NULL)
+	{
+		return;
+	}
+	else
+	{
+		if (head == NULL && strcmp(current_item->key, key) == 0)
+		{
+			table->items[index] = NULL;
+			FreeItem(current_item);
+			table->count--;
+			return;
+		}
+
+		else if (head != NULL)
+		{
+			if (strcmp(current_item->key, key) == 0)
+			{
+				FreeItem(current_item);
+				LinkedList* node = head;
+				head = head->next;
+				node->next = NULL;
+				table->items[index] = CreateItem(node->item->key, node->item->value);
+				FreeLinkedList(node);
+				table->overflowBucket[index] = head;
+				return;
+			}
+			LinkedList* curr = head;
+			LinkedList* prev = NULL;
+
+			while (curr) {
+				if (strcmp(curr->item->key, key) == 0)
+				{
+					if (prev == NULL) {
+						FreeLinkedList(head);
+						table->overflowBucket[index] = NULL;
+						return;
+					}
+					else {
+						prev->next = curr->next;
+						curr->next = NULL;
+						FreeLinkedList(curr);
+						table->overflowBucket[index] = head;
+						return;
+					}
+				}
+				curr = curr->next;
+				prev = curr;
+			}
+		}
+	}
 }
 
 char* HT_search(HashTable* table, char* key)
 {
 	int index = HashFunction(key);
 	HT_item* item = table->items[index];
-	if (item != NULL)
+	LinkedList* head = table->overflowBucket[index];
+
+	while (item != NULL)
 	{
 		if (strcmp(item->key, key) == 0)
 			return item->value;
+		if (head == NULL)
+			return NULL;
+
+		item = head->item;
+		head = head->next;
 	}
 	return NULL;
 }
@@ -276,19 +337,40 @@ void printTable(HashTable* table)
 	for (int i = 0; i < table->size; i++)
 	{
 		if (table->items[i])
+		{
 			std::cout << "Index: " << i << "\tKey: " << table->items[i]->key << "\t\tValue: " << table->items[i]->value << std::endl;
+			if (table->overflowBucket[i])
+			{
+				std::cout << "\nOverflow bucket for index " << i << std::endl;
+				LinkedList* head = table->overflowBucket[i];
+				while (head != nullptr)
+				{
+					std::cout << "Key: " << head->item->key << "\t\tValue: " << head->item->value << std::endl;
+					head = head->next;
+				}
+				std::cout << "End of overlow bucket for index " << i << std::endl << std::endl;
+			}
+		}
+		
 	}
-	std::cout << "\t-------- End of Table --------" << std::endl;
+	std::cout << "\n\t-------- End of Table --------" << std::endl;
 }
 
 int main()
 {
 	HashTable* ht = CreateTable(CAPACITY);
-	HT_insert(ht, const_cast < char*>("1"), const_cast < char*>("First address"));
-	HT_insert(ht, const_cast < char*>("2"), const_cast < char*>("Second address"));
+	HT_insert(ht, const_cast <char*>("1"), const_cast <char*>("First address"));
+	HT_insert(ht, const_cast <char*>("2"), const_cast <char*>("Second address"));
+	HT_insert(ht, const_cast < char*>("Hel"), const_cast < char*>("Third address"));
+	HT_insert(ht, const_cast < char*>("Cau"), const_cast < char*>("Fourth address"));
 	printSearch(ht, const_cast < char*>("1"));
 	printSearch(ht, const_cast < char*>("2"));
 	printSearch(ht, const_cast < char*>("3"));
+	printSearch(ht, const_cast < char*>("Hel"));
+	printSearch(ht, const_cast <char*>("Cau"));  // Collision!
+	printTable(ht);
+	HT_delete(ht, const_cast <char*>("1"));
+	HT_delete(ht, const_cast <char*>("Cau"));
 	printTable(ht);
 	FreeTable(ht);
 	return 0;
